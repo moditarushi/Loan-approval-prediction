@@ -3,24 +3,13 @@ import pickle
 import numpy as np
 import pandas as pd
 
-# MUST be first Streamlit command
-st.set_page_config(page_title="Loan Prediction", page_icon="💰")
-
-# Load model
+# Load model & columns
 model = pickle.load(open("loan_model.pkl", "rb"))
 columns = pickle.load(open("model_columns.pkl", "rb"))
 
-# Sidebar
-st.sidebar.title("About")
-st.sidebar.info("This app predicts loan approval using Machine Learning.")
-
-# Title
 st.title("💰 Loan Approval Prediction System")
-st.write("Enter applicant details below:")
 
-# -------------------- INPUT --------------------
-
-st.subheader("🧍 Personal Details")
+# ---------------- INPUT ----------------
 
 gender = st.selectbox("Gender", ["Male", "Female"])
 married = st.selectbox("Married", ["Yes", "No"])
@@ -28,17 +17,15 @@ dependents = st.selectbox("Dependents", ["0", "1", "2", "3+"])
 education = st.selectbox("Education", ["Graduate", "Not Graduate"])
 self_employed = st.selectbox("Self Employed", ["Yes", "No"])
 
-st.subheader("💰 Financial Details")
-
 credit_history = st.selectbox("Credit History", [1.0, 0.0])
 property_area = st.selectbox("Property Area", ["Urban", "Semiurban", "Rural"])
 
-loan_term = st.number_input("Loan Amount Term (months)", value=360)
+loan_term = st.number_input("Loan Term", value=360)
 coapp_income = st.number_input("Coapplicant Income", value=0.0)
 app_income = st.number_input("Applicant Income", value=5000.0)
-loan_amount = st.number_input("Loan Amount (in thousands)", value=120.0)
+loan_amount = st.number_input("Loan Amount", value=120.0)
 
-# -------------------- ENCODING --------------------
+# ---------------- ENCODING ----------------
 
 gender = 1 if gender == "Male" else 0
 married = 1 if married == "Yes" else 0
@@ -53,7 +40,7 @@ elif property_area == "Semiurban":
 else:
     property_area = 0
 
-# -------------------- TRANSFORM --------------------
+# ---------------- TRANSFORM ----------------
 
 total_income = app_income + coapp_income
 
@@ -61,9 +48,8 @@ app_income_log = np.log(app_income + 1)
 coapp_income_log = np.log(coapp_income + 1)
 loan_amount_log = np.log(loan_amount + 1)
 loan_term_log = np.log(loan_term + 1)
-total_income_log = np.log(total_income + 1)
 
-# -------------------- PREDICTION --------------------
+# ---------------- PREDICTION ----------------
 
 if st.button("Predict Loan Status"):
 
@@ -75,55 +61,42 @@ if st.button("Predict Loan Status"):
         "Self_Employed": self_employed,
         "Credit_History": credit_history,
         "Property_Area": property_area,
+
+        # Try both possibilities (VERY IMPORTANT)
         "Loan_Term_Log": loan_term_log,
-        "CoapplicantIncome": coapp_income_log,
+        "LoanAmount": loan_amount_log,
+        "LoanAmount_Log": loan_amount_log,
+
         "ApplicantIncome": app_income_log,
-        "LoanAmount": loan_amount_log
+        "ApplicantIncome_Log": app_income_log,
+
+        "CoapplicantIncome": coapp_income_log,
+        "CoapplicantIncome_Log": coapp_income_log,
     }
 
+    # Convert to dataframe
     input_df = pd.DataFrame([input_dict])
 
-    input_df = input_df.reindex(columns=columns,fill_value=0)
+    # 🔥 Force match columns EXACTLY
+    for col in columns:
+        if col not in input_df:
+            input_df[col] = 0
 
+    input_df = input_df[columns]
+
+    # Convert to numeric
     input_df = input_df.astype(float)
 
+    # DEBUG (optional)
+    # st.write(input_df)
+
+    # Prediction
     prediction = model.predict(input_df)
     prob = model.predict_proba(input_df)
 
     approval_prob = prob[0][1] * 100
 
-    st.markdown("---")
-
-    # -------------------- OUTPUT --------------------
-
     if prediction[0] == 1:
-        st.success("✅ Loan Approved")
-
-        if approval_prob > 80:
-            st.write("💚 Strong approval chances")
-        elif approval_prob > 60:
-            st.write("💛 Moderate approval chances")
-        else:
-            st.warning("⚠️ Risky approval")
-
+        st.success(f"✅ Loan Approved ({approval_prob:.2f}%)")
     else:
-        st.error("❌ Loan Rejected")
-
-        if approval_prob < 40:
-            st.write("🚫 Very low approval chances")
-
-    # Progress bar
-    st.progress(int(approval_prob))
-
-    # Probability display
-    st.info(f"📊 Approval Probability: {approval_prob:.2f}%")
-
-    # Insights
-    st.markdown("### 📌 Model Insights")
-    st.markdown("""
-    - Higher income increases approval chances  
-    - Good credit history is most important  
-    - Lower loan amount improves approval  
-    """)
-
-    
+        st.error(f"❌ Loan Rejected ({approval_prob:.2f}%)")
