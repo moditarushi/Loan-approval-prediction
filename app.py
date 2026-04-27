@@ -85,6 +85,8 @@ if st.button("Predict Loan Status"):
 
     input_df = input_df.reindex(columns=columns,fill_value=0)
 
+    input_df = input_df.astype(float)
+
     prediction = model.predict(input_df)
     prob = model.predict_proba(input_df)
 
