@@ -1,18 +1,17 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import pickle
+import joblib
 
-# ---------------- LOAD MODEL ----------------
-with open("loan_model.pkl", "rb") as f:
-    model = pickle.load(f)
-
-with open("model_columns.pkl", "rb") as f:
-    columns = pickle.load(f)
+# Load model and columns
+model = joblib.load("loan_model.pkl")
+columns = joblib.load("model_columns.pkl")
 
 st.title("💰 Loan Approval Prediction System")
 
-# ---------------- INPUTS ----------------
+st.write("Enter applicant details below:")
+
+# ---------------- INPUT ----------------
 gender = st.selectbox("Gender", ["Male", "Female"])
 married = st.selectbox("Married", ["Yes", "No"])
 dependents = st.selectbox("Dependents", ["0", "1", "2", "3+"])
@@ -21,10 +20,10 @@ self_employed = st.selectbox("Self Employed", ["Yes", "No"])
 credit_history = st.selectbox("Credit History", [1, 0])
 property_area = st.selectbox("Property Area", ["Urban", "Semiurban", "Rural"])
 
-coapp_income = st.number_input("Coapplicant Income", value=0.0)
-app_income = st.number_input("Applicant Income", value=5000.0)
-loan_amount = st.number_input("Loan Amount (in thousands)", value=120.0)
-loan_term = st.number_input("Loan Term", value=360.0)
+coapp_income = st.number_input("Coapplicant Income", 0.0)
+app_income = st.number_input("Applicant Income", 0.0)
+loan_amount = st.number_input("Loan Amount", 0.0)
+loan_term = st.number_input("Loan Term", 0.0)
 
 # ---------------- ENCODING ----------------
 gender = 1 if gender == "Male" else 0
@@ -40,6 +39,15 @@ elif property_area == "Semiurban":
 else:
     property_area = 0
 
+# ---------------- TRANSFORM ----------------
+total_income = app_income + coapp_income
+
+app_income_log = np.log(app_income + 1)
+coapp_income_log = np.log(coapp_income + 1)
+loan_amount_log = np.log(loan_amount + 1)
+loan_term_log = np.log(loan_term + 1)
+total_income_log = np.log(total_income + 1)
+
 # ---------------- PREDICTION ----------------
 if st.button("Predict Loan Status"):
 
@@ -51,27 +59,26 @@ if st.button("Predict Loan Status"):
         "Self_Employed": self_employed,
         "Credit_History": credit_history,
         "Property_Area": property_area,
-        "Loan_Amount_Term": np.log(loan_term + 1),
-        "CoapplicantIncome": np.log(coapp_income + 1),
-        "ApplicantIncome": np.log(app_income + 1),
-        "LoanAmount": np.log(loan_amount + 1),
+        "Loan_Amount_Term": loan_term_log,
+        "CoapplicantIncome": coapp_income_log,
+        "ApplicantIncome": app_income_log,
+        "LoanAmount": loan_amount_log,
+        "Total_Income": total_income_log
     }
 
     # Convert to DataFrame
     input_df = pd.DataFrame([input_dict])
 
-    # Match model columns
+    # Match columns with training
     input_df = input_df.reindex(columns=columns, fill_value=0)
 
-    # Ensure numeric
-    input_df = input_df.astype(float)
-
     # Prediction
-    prediction = model.predict(input_df)[0]
-    prob = model.predict_proba(input_df)[0][1] * 100
+    prediction = model.predict(input_df)
+    prob = model.predict_proba(input_df)
 
-    # Output
-    if prediction == 1:
-        st.success(f"✅ Loan Approved ({prob:.2f}% chance)")
+    approval_prob = prob[0][1] * 100
+
+    if prediction[0] == 1:
+        st.success(f"✅ Loan Approved ({approval_prob:.2f}% chance)")
     else:
-        st.error(f"❌ Loan Rejected ({prob:.2f}% chance)")
+        st.error(f"❌ Loan Rejected ({approval_prob:.2f}% chance)")
