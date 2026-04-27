@@ -58,6 +58,7 @@ else:
 total_income = app_income + coapp_income
 
 app_income_log = np.log(app_income + 1)
+coapp_income_log = np.log(coapp_income + 1)
 loan_amount_log = np.log(loan_amount + 1)
 loan_term_log = np.log(loan_term + 1)
 total_income_log = np.log(total_income + 1)
@@ -74,10 +75,10 @@ if st.button("Predict Loan Status"):
         "Self_Employed": self_employed,
         "Credit_History": credit_history,
         "Property_Area": property_area,
-        "Loan_Amount_Term": np.log(loan_term + 1),
-        "CoapplicantIncome": np.log(coapp_income + 1),
-        "ApplicantIncome": np.log(app_income + 1),
-        "LoanAmount": np.log(loan_amount + 1),
+        "Loan_Term_Log": loan_term_log,
+        "CoapplicantIncome": coapp_income_log,
+        "ApplicantIncome": app_income_log,
+        "LoanAmount": loan_amount_log
     }
 
     input_df = pd.DataFrame([input_dict])
