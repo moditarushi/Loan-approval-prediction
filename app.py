@@ -1,12 +1,14 @@
 import streamlit as st
 import pickle
 import numpy as np
+import pandas as pd
 
 # MUST be first Streamlit command
 st.set_page_config(page_title="Loan Prediction", page_icon="💰")
 
 # Load model
 model = pickle.load(open("loan_model.pkl", "rb"))
+columns = pickle.load(open("model_columns.pkl", "rb"))
 
 # Sidebar
 st.sidebar.title("About")
@@ -64,22 +66,26 @@ total_income_log = np.log(total_income + 1)
 
 if st.button("Predict Loan Status"):
 
-    input_data = np.array([[ 
-        gender,
-        married,
-        dependents,
-        education,
-        self_employed,
-        credit_history,
-        property_area,
-        app_income_log,
-        loan_amount_log,
-        loan_term_log,
-        total_income_log
-    ]])
+    input_dict = {
+        "Gender": gender,
+        "Married": married,
+        "Dependents": dependents,
+        "Education": education,
+        "Self_Employed": self_employed,
+        "Credit_History": credit_history,
+        "Property_Area": property_area,
+        "Loan_Amount_Term": np.log(loan_term + 1),
+        "CoapplicantIncome": np.log(coapp_income + 1),
+        "ApplicantIncome": np.log(app_income + 1),
+        "LoanAmount": np.log(loan_amount + 1),
+    }
 
-    prediction = model.predict(input_data)
-    prob = model.predict_proba(input_data)
+    input_df = pd.DataFrame([input_dict])
+
+    input_df = input_df.reindex(columns=columns,fill_value=0)
+
+    prediction = model.predict(input_df)
+    prob = model.predict_proba(input_df)
 
     approval_prob = prob[0][1] * 100
 
